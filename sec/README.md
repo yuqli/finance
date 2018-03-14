@@ -8,6 +8,6 @@ This folder contains scripts for a Python program that:
 
 To-do:
 
--[ ] Write Python program to scrape and stores files
--[ ] Connect stored files into MySQL database
--[ ] Write program to do this periodically. 
+- [ ] Write Python program to scrape and stores files
+- [ ] Connect stored files into MySQL database
+- [ ] Write program to do this periodically. 
