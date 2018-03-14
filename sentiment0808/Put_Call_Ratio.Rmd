@@ -1,0 +1,222 @@
+---
+title: "Are put call ratio useful statistically?"
+author: "Li Yuqiong"
+output:
+  word_document: default
+  html_notebook: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+library(ggplot2)
+library(tidyr)
+```
+
+```{r}
+### import data
+setwd('/Users/yuqiongli/desktop/python/finance/sentiment0808')
+returns <- read.csv('returns.csv', header = TRUE, sep = ",") # note the address
+returns$Securities <- as.factor(returns$Securities)
+#typeof(returns$Date)  -- Integer. Import from Excel, note starting date
+returns$Date <- as.Date(returns$Date, format = '%d/%m/%Y') # note the Uppercase Y
+
+```
+
+## Exploratory analysis
+### Line Plots
+```{r}
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+# Source URL: http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/ 
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+Plot the returns for three types of securities.
+```{r}
+MMM <- returns[returns$Securities=='MMM', ]
+p1 <- ggplot(data = MMM, aes(x = Date, y = Buy_Hold)) + geom_line() + 
+  ggtitle("Buy and Hold") + labs(y="Simple Daily Return")
+p2 <- ggplot(data = MMM, aes(x = Date, y = SD_05)) + geom_line() + 
+  ggtitle("Put Call Ratio SD = 0.5") +labs(y="Simple Daily Return")
+p3 <- ggplot(data = MMM, aes(x = Date, y = SD_1)) + geom_line() + 
+  ggtitle("Put Call Ratio SD = 1") + labs(y="Simple Daily Return")
+p4 <- ggplot(data = MMM, aes(x = Date, y = SD_2)) + geom_line() + 
+  ggtitle("Put Call Ratio SD = 2") + labs(y="Simple Daily Return")
+multiplot(p1, p2, p3, p4, cols=2)
+```
+
+```{r}
+MO <- returns[returns$Securities=='MO', ]
+p1 <- ggplot(data = MO, aes(x = Date, y = Buy_Hold)) + geom_line() + 
+  ggtitle("Buy and Hold") + labs(y="Simple Daily Return")
+p2 <- ggplot(data = MO, aes(x = Date, y = SD_05)) + geom_line() + 
+  ggtitle("Put Call Ratio SD = 0.5") +labs(y="Simple Daily Return")
+p3 <- ggplot(data = MO, aes(x = Date, y = SD_1)) + geom_line() + 
+  ggtitle("Put Call Ratio SD = 1") + labs(y="Simple Daily Return")
+p4 <- ggplot(data = MO, aes(x = Date, y = SD_2)) + geom_line() + 
+  ggtitle("Put Call Ratio SD = 2") + labs(y="Simple Daily Return")
+multiplot(p1, p2, p3, p4, cols=2)
+```
+
+
+```{r}
+KO <- returns[returns$Securities=='KO', ]
+p1 <- ggplot(data = KO, aes(x = Date, y = Buy_Hold)) + geom_line() + 
+  ggtitle("Buy and Hold") + labs(y="Simple Daily Return")
+p2 <- ggplot(data = KO, aes(x = Date, y = SD_05)) + geom_line() + 
+  ggtitle("Put Call Ratio SD = 0.5") +labs(y="Simple Daily Return")
+p3 <- ggplot(data = KO, aes(x = Date, y = SD_1)) + geom_line() + 
+  ggtitle("Put Call Ratio SD = 1") + labs(y="Simple Daily Return")
+p4 <- ggplot(data = KO, aes(x = Date, y = SD_2)) + geom_line() + 
+  ggtitle("Put Call Ratio SD = 2") + labs(y="Simple Daily Return")
+multiplot(p1, p2, p3, p4, cols=2)
+```
+
+### Test for normality to see if can use ANOVA
+#### First have a look at density 
+```{r}
+plot(density(MMM$Buy_Hold))
+plot(density(MMM$SD_05))
+plot(density(MMM$SD_1))
+plot(density(MMM$SD_2))
+```
+Only Buy and Hold "looks" like a normal curve. 
+
+```{r}
+shapiro.test(MMM$Buy_Hold)
+shapiro.test(MMM$SD_05)
+shapiro.test(MMM$SD_1)
+shapiro.test(MMM$SD_2)
+```
+For all four tests, p-value < 0.05 suggest that none of the four distributions are normal. 
+
+```{r}
+## Plot using a qqplot
+qqnorm(MMM$Buy_Hold);qqline(MMM$Buy_Hold, col = 2)
+qqnorm(MMM$SD_05);qqline(MMM$SD_05, col = 2)
+qqnorm(MMM$SD_1);qqline(MMM$SD_1, col = 2)
+qqnorm(MMM$SD_2);qqline(MMM$SD_2, col = 2)
+```
+Conclusion is that the normality assumptions of return sequences are violated. We have two options here. First, we can continue to use ANOVA with the possibility of a increased false positives. Also, it is possible to do a non-parametric test that does not require normality assumption, but the risk is the four distributions do not like the same from the above graph. Comparing these two I decide to go with ANOVA anyway. 
+
+Next, repeat the process for MO US Equity.
+
+```{r}
+plot(density(MO$Buy_Hold))
+plot(density(MO$SD_05))
+plot(density(MO$SD_1))
+plot(density(MO$SD_2))
+```
+
+```{r}
+shapiro.test(MO$Buy_Hold)
+shapiro.test(MO$SD_05)
+shapiro.test(MO$SD_1)
+shapiro.test(MO$SD_2)
+```
+For all four tests, p-value < 0.05 suggest that none of the four distributions are normal. 
+
+```{r}
+## Plot using a qqplot
+qqnorm(MO$Buy_Hold);qqline(MO$Buy_Hold, col = 2)
+qqnorm(MO$SD_05);qqline(MO$SD_05, col = 2)
+qqnorm(MO$SD_1);qqline(MO$SD_1, col = 2)
+qqnorm(MO$SD_2);qqline(MO$SD_2, col = 2)
+```
+Conclude that distribution is not normal and thus ANOVA might have higher false positive results.
+
+```{r}
+plot(density(KO$Buy_Hold))
+plot(density(KO$SD_05))
+plot(density(KO$SD_1))
+plot(density(KO$SD_2))
+```
+
+```{r}
+shapiro.test(KO$Buy_Hold)
+shapiro.test(KO$SD_05)
+shapiro.test(KO$SD_1)
+shapiro.test(KO$SD_2)
+```
+For all four tests, p-value < 0.05 suggest that none of the four distributions are normal. 
+
+```{r}
+## Plot using a qqplot
+qqnorm(KO$Buy_Hold);qqline(KO$Buy_Hold, col = 2)
+qqnorm(KO$SD_05);qqline(KO$SD_05, col = 2)
+qqnorm(KO$SD_1);qqline(KO$SD_1, col = 2)
+qqnorm(KO$SD_2);qqline(KO$SD_2, col = 2)
+```
+Conclude that distribution is not normal and thus ANOVA might have higher false positive results.
+
+## ANOVA test
+First need to regroup data. Create a strategy variable and conversion from wide format to long format.
+```{r}
+returns_long <- gather(returns, strategy, daily_return, Buy_Hold:SD_2, factor_key=TRUE)
+```
+
+```{r}
+MMM_long <- returns_long[returns_long$Securities=='MMM', ]
+fit <- aov(daily_return ~ strategy, data = MMM_long)
+summary(fit)
+```
+Even with an possibly larger probability of false positive, the null is not rejected because p-value not significant at 0.05 level. Accept null that the four groups have equal means, 
+Conclusion is that for MMM US Equity, Buy and Hold and three other strategies have equal means. That is, put/call ratio strategy does not make statistiacally differences.
+
+```{r}
+MO_long <- returns_long[returns_long$Securities=='MO', ]
+fit <- aov(daily_return ~ strategy, data = MO_long)
+summary(fit)
+```
+Conclude that for MO US Equity put/call ratio strategy does not have significance effects on group means. Rationale similar with above.
+
+```{r}
+KO_long <- returns_long[returns_long$Securities=='KO', ]
+fit <- aov(daily_return ~ strategy, data = KO_long)
+summary(fit)
+```
+Conclude that for KO US Equity put/call ratio strategy does not have significance effects on group means. Rationale similar with above.
+
